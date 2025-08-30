@@ -1,5 +1,6 @@
+"use client";
+
 import Link from "next/link";
-import { BarChart3, Users, Clock, Shield, Zap, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,308 +9,235 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Header from "@/components/layout/Header";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowRight,
+  BarChart3,
+  Users,
+  Zap,
+  Shield,
+  Clock,
+  Globe,
+} from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
 
-export default function LandingPage() {
-  const features = [
-    {
-      icon: BarChart3,
-      title: "Real-time Results",
-      description:
-        "Watch poll results update in real-time as votes come in. Get instant insights from your community.",
-    },
-    {
-      icon: Users,
-      title: "Community Driven",
-      description:
-        "Engage with a vibrant community of poll creators and participants. Share opinions and discover trends.",
-    },
-    {
-      icon: Clock,
-      title: "Time-based Polls",
-      description:
-        "Set expiry dates for your polls to create urgency or run time-limited campaigns.",
-    },
-    {
-      icon: Shield,
-      title: "Secure & Private",
-      description:
-        "Your data is protected with industry-standard security measures. Vote with confidence.",
-    },
-    {
-      icon: Zap,
-      title: "Quick & Easy",
-      description:
-        "Create polls in seconds with our intuitive interface. No complex setup required.",
-    },
-    {
-      icon: TrendingUp,
-      title: "Analytics",
-      description:
-        "Get detailed insights about your polls with comprehensive analytics and reporting.",
-    },
-  ];
-
-  const stats = [
-    { number: "10K+", label: "Active Users" },
-    { number: "50K+", label: "Polls Created" },
-    { number: "500K+", label: "Votes Cast" },
-    { number: "99.9%", label: "Uptime" },
-  ];
+export default function HomePage() {
+  const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
+      <header className="border-b bg-white/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">Polling App</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              {isAuthenticated ? (
+                <Button asChild>
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" asChild>
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/register">Get Started</Link>
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-50 to-indigo-100 py-20 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              Create Engaging Polls in
-              <span className="text-primary"> Seconds</span>
-            </h1>
-            <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-              Gather opinions, make decisions, and engage your community with
-              beautiful, interactive polls. Simple to create, powerful to
-              analyze.
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Button size="lg" asChild>
-                <Link href="/register">Get Started Free</Link>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/polls">Browse Polls</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Hero Image/Illustration Placeholder */}
-        <div className="mt-16 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="relative">
-            <div className="bg-white rounded-lg shadow-xl p-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Sample poll cards */}
-                <Card className="border-2 border-blue-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">
-                      Favorite Programming Language?
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>TypeScript</span>
-                      <span>45%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: "45%" }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Python</span>
-                      <span>30%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full"
-                        style={{ width: "30%" }}
-                      ></div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2 border-green-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">
-                      Best Meeting Time?
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>9:00 AM</span>
-                      <span>25%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full"
-                        style={{ width: "25%" }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>2:00 PM</span>
-                      <span>35%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: "35%" }}
-                      ></div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2 border-purple-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">
-                      Office Lunch Choice?
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Pizza</span>
-                      <span>40%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-purple-600 h-2 rounded-full"
-                        style={{ width: "40%" }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Thai Food</span>
-                      <span>35%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-orange-600 h-2 rounded-full"
-                        style={{ width: "35%" }}
-                      ></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl font-bold text-primary">
-                  {stat.number}
-                </div>
-                <div className="text-sm text-gray-600 mt-1">{stat.label}</div>
-              </div>
-            ))}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <Badge variant="secondary" className="mb-4">
+            ✨ Create polls in seconds
+          </Badge>
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+            Create Engaging Polls,
+            <br />
+            <span className="text-blue-600">Gather Real Insights</span>
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Build beautiful polls, collect responses, and analyze results with
+            our modern polling platform. Perfect for teams, events, and
+            community engagement.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" asChild>
+              <Link href={isAuthenticated ? "/polls/create" : "/register"}>
+                Create Your First Poll
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link href="#features">Learn More</Link>
+            </Button>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-gray-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Everything you need to create amazing polls
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Everything you need for effective polling
             </h2>
-            <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-              Powerful features that make poll creation and management
-              effortless, whether you're gathering team feedback or running
-              community surveys.
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Powerful features designed to help you create, share, and analyze
+              polls effortlessly.
             </p>
           </div>
 
-          <div className="mt-20 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature, index) => {
-              const IconComponent = feature.icon;
-              return (
-                <Card
-                  key={index}
-                  className="relative hover:shadow-lg transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-center space-x-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-                        <IconComponent className="h-6 w-6 text-white" />
-                      </div>
-                      <CardTitle className="text-xl">{feature.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-gray-600">
-                      {feature.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <BarChart3 className="h-6 w-6 text-blue-600" />
+                </div>
+                <CardTitle>Real-time Results</CardTitle>
+                <CardDescription>
+                  Watch votes come in live with beautiful charts and instant
+                  analytics.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <CardTitle>Team Collaboration</CardTitle>
+                <CardDescription>
+                  Share polls with your team, collect feedback, and make
+                  data-driven decisions together.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                  <Zap className="h-6 w-6 text-purple-600" />
+                </div>
+                <CardTitle>Lightning Fast</CardTitle>
+                <CardDescription>
+                  Create polls in seconds with our intuitive interface and smart
+                  templates.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                  <Shield className="h-6 w-6 text-red-600" />
+                </div>
+                <CardTitle>Privacy First</CardTitle>
+                <CardDescription>
+                  Anonymous voting options and secure data handling to protect
+                  user privacy.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
+                  <Clock className="h-6 w-6 text-yellow-600" />
+                </div>
+                <CardTitle>Time Controls</CardTitle>
+                <CardDescription>
+                  Set deadlines, schedule polls, and automatically close voting
+                  when needed.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
+                  <Globe className="h-6 w-6 text-indigo-600" />
+                </div>
+                <CardTitle>Easy Sharing</CardTitle>
+                <CardDescription>
+                  Share polls via link, embed them anywhere, or invite specific
+                  participants.
+                </CardDescription>
+              </CardHeader>
+            </Card>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-primary py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Ready to start polling?
-            </h2>
-            <p className="mt-4 text-lg text-blue-100 max-w-2xl mx-auto">
-              Join thousands of users who are already creating engaging polls
-              and gathering valuable insights.
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Button size="lg" variant="secondary" asChild>
-                <Link href="/register">Create Your First Poll</Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-primary"
-                asChild
-              >
-                <Link href="/polls">Explore Polls</Link>
-              </Button>
-            </div>
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-blue-600">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to start polling?
+          </h2>
+          <p className="text-lg text-blue-100 mb-8">
+            Join thousands of users who trust our platform for their polling
+            needs.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" variant="secondary" asChild>
+              <Link href={isAuthenticated ? "/polls/create" : "/register"}>
+                Get Started Free
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-white border-white hover:bg-white hover:text-blue-600"
+              asChild
+            >
+              <Link href="/login">Sign In</Link>
+            </Button>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between space-y-4 md:flex-row md:space-y-0">
-            <div className="flex items-center space-x-2">
-              <BarChart3 className="h-8 w-8 text-primary" />
-              <span className="font-bold text-xl text-gray-900">PollHub</span>
-            </div>
-
-            <div className="flex space-x-6 text-sm text-gray-600">
-              <Link
-                href="/polls"
-                className="hover:text-primary transition-colors"
-              >
-                Browse Polls
+      <footer className="border-t bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Polling App
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Create, share, and analyze polls with ease.
+            </p>
+            <div className="flex justify-center space-x-6">
+              <Link href="/login" className="text-gray-600 hover:text-gray-900">
+                Sign In
               </Link>
               <Link
-                href="/about"
-                className="hover:text-primary transition-colors"
+                href="/register"
+                className="text-gray-600 hover:text-gray-900"
               >
-                About
+                Register
               </Link>
               <Link
-                href="/privacy"
-                className="hover:text-primary transition-colors"
+                href="#features"
+                className="text-gray-600 hover:text-gray-900"
               >
-                Privacy
-              </Link>
-              <Link
-                href="/terms"
-                className="hover:text-primary transition-colors"
-              >
-                Terms
+                Features
               </Link>
             </div>
-
-            <div className="text-sm text-gray-500">
-              © 2024 PollHub. All rights reserved.
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <p className="text-gray-500 text-sm">
+                © 2024 Polling App. Built with Next.js and Shadcn UI.
+              </p>
             </div>
           </div>
         </div>
