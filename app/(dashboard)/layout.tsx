@@ -1,20 +1,40 @@
-import { ReactNode } from 'react'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import {
-  Home,
-  Plus,
-  BarChart3,
-  User,
-  LogOut,
-  Settings
-} from 'lucide-react'
+'use client';
+
+import { ReactNode, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Home, Plus, BarChart3, User, LogOut } from 'lucide-react';
+import { AuthProvider, useAuth } from '@/components/auth/auth-provider';
+import { supabase } from '@/lib/supabase';
 
 interface DashboardLayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+function DashboardLayoutContent({ children }: DashboardLayoutProps) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -60,13 +80,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <User className="h-4 w-4" />
                 </div>
                 <div className="ml-3">
-                  <div className="text-sm font-medium leading-none">John Doe</div>
-                  <div className="text-xs leading-none text-muted-foreground mt-1">
-                    john.doe@example.com
+                  <div className="text-sm font-medium leading-none">
+                    {user.email}
                   </div>
                 </div>
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Log out
               </Button>
@@ -80,5 +99,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {children}
       </main>
     </div>
-  )
+  );
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <AuthProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </AuthProvider>
+  );
 }

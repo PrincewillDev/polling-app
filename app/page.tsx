@@ -22,7 +22,7 @@ import {
 import { useAuth } from "@/components/auth/auth-provider";
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -34,7 +34,7 @@ export default function HomePage() {
               <h1 className="text-xl font-bold text-gray-900">Polling App</h1>
             </div>
             <div className="flex items-center space-x-4">
-              {isAuthenticated ? (
+              {!!user ? (
                 <Button asChild>
                   <Link href="/dashboard">Dashboard</Link>
                 </Button>
@@ -71,7 +71,7 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" asChild>
-              <Link href={isAuthenticated ? "/polls/create" : "/register"}>
+              <Link href={!!user ? "/polls/create" : "/register"}>
                 Create Your First Poll
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -190,7 +190,7 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" asChild>
-              <Link href={isAuthenticated ? "/polls/create" : "/register"}>
+              <Link href={!!user ? "/polls/create" : "/register"}>
                 Get Started Free
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
