@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { ReactNode, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Home, Plus, BarChart3, User, LogOut } from 'lucide-react';
-import { AuthProvider, useAuth } from '@/components/auth/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { ReactNode, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Home, Plus, BarChart3, User, LogOut } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { supabase } from "@/lib/supabase";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -17,14 +17,14 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
+    if (!loading && !user) { // Only redirect if not loading AND no user
+      router.push("/login");
     }
   }, [user, loading, router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push("/login");
   };
 
   if (loading) {
@@ -43,7 +43,10 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <Link href="/dashboard" className="text-xl font-bold text-gray-900">
+              <Link
+                href="/dashboard"
+                className="text-xl font-bold text-gray-900"
+              >
                 Polling App
               </Link>
             </div>
@@ -95,17 +98,11 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {children}
-      </main>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  return (
-    <AuthProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
-    </AuthProvider>
-  );
+  return <DashboardLayoutContent>{children}</DashboardLayoutContent>;
 }

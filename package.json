@@ -2,11 +2,17 @@
   "name": "polling-app",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "setup": "node scripts/setup-env.js",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:status": "supabase status"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",
@@ -24,6 +30,8 @@
     "@supabase/supabase-js": "^2.56.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.1",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
     "react": "19.1.0",
@@ -38,6 +46,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
+    "supabase": "^2.39.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
