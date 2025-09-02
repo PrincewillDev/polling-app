@@ -30,6 +30,7 @@ import {
   BarChart3,
   Calendar,
   Users,
+  TrendingUp,
 } from "lucide-react";
 import { Poll } from "@/types";
 import { formatDistanceToNow } from "date-fns";
@@ -128,6 +129,16 @@ export function PollCard({
                   >
                     <Eye className="mr-2 h-4 w-4" />
                     View Poll
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/polls/${poll.id}/results`}
+                    className="flex items-center"
+                  >
+                    <TrendingUp className="mr-2 h-4 w-4" />
+                    View Results
                   </Link>
                 </DropdownMenuItem>
 
@@ -232,7 +243,7 @@ export function PollCard({
                 Options:
               </h4>
               <div className="space-y-1">
-                {poll.options.slice(0, 2).map((option, index) => (
+                {poll.options.slice(0, 2).map((option) => (
                   <div
                     key={option.id}
                     className="flex items-center justify-between text-sm"
@@ -298,9 +309,9 @@ export function PollCard({
           {/* Tags */}
           {poll.tags && poll.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {poll.tags.slice(0, 3).map((tag, index) => (
+              {poll.tags.slice(0, 3).map((tag, tagIndex) => (
                 <Badge
-                  key={index}
+                  key={tagIndex}
                   variant="secondary"
                   className="text-xs px-2 py-0"
                 >

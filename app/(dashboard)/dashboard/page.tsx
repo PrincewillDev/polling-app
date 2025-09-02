@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { PollCard } from "@/components/dashboard/poll-card";
-import { useAuth } from "@/components/auth/auth-provider";
+import { useAuth } from "@/components/auth/ssr-auth-provider";
 import { userPollsAPI } from "@/lib/api/user-polls";
 import { Poll } from "@/types";
 

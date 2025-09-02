@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Plus, Eye, Settings, Palette } from "lucide-react";
 import { pollsAPI } from "@/lib/api/polls";
 import { CreatePollRequest } from "@/types";
-import { useAuth } from "@/components/auth/auth-provider";
+import { useAuth } from "@/components/auth/ssr-auth-provider";
 
 const CATEGORIES = [
   "Technology",
@@ -58,7 +58,7 @@ const SHOW_RESULTS_OPTIONS = [
 
 export default function CreatePollPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
 
@@ -112,8 +112,14 @@ export default function CreatePollPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check authentication state
-    console.log("Authentication state:", { user, isAuthenticated });
+    // Check authentication state with better handling
+    console.log("Authentication state:", { user, isAuthenticated, loading });
+
+    if (loading) {
+      console.log("Authentication still loading, please wait...");
+      return;
+    }
+
     if (!isAuthenticated || !user) {
       console.error("User not authenticated");
       alert("Please log in to create a poll");

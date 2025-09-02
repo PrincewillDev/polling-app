@@ -29,21 +29,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session and verify user
     const getSession = async () => {
       try {
+        // Always use getUser() to verify authenticity instead of getSession()
         const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+          data: { user: authenticatedUser },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-        if (error) {
-          console.error("Error getting session:", error);
+        if (userError) {
+          console.error("Error getting authenticated user:", userError);
         } else {
-          setUser(session?.user ?? null);
+          setUser(authenticatedUser);
         }
       } catch (error) {
-        console.error("Unexpected error getting session:", error);
+        console.error("Unexpected error getting authenticated user:", error);
       } finally {
         setLoading(false);
       }
@@ -57,12 +58,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth state changed:", event, session?.user?.email);
 
-      setUser(session?.user ?? null);
+      // Always verify user authenticity with getUser() instead of using session.user
+      let authenticatedUser: User | null = null;
+      if (session) {
+        const {
+          data: { user: fetchedUser },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError) {
+          console.error(
+            "Error authenticating user on auth state change:",
+            userError,
+          );
+        } else {
+          authenticatedUser = fetchedUser;
+        }
+      }
+
+      setUser(authenticatedUser);
       setLoading(false);
 
       // Handle user profile creation/update
-      if (event === "SIGNED_IN" && session?.user) {
-        await ensureUserProfile(session.user);
+      if (event === "SIGNED_IN" && authenticatedUser) {
+        await ensureUserProfile(authenticatedUser);
       }
     });
 
@@ -118,7 +136,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         console.log("Inserting user profile:", userData);
 
-        const { error: insertError } = await supabase
+        const { error: insertError } = await (
+          supabase as unknown as {
+            from: (table: string) => {
+              insert: (data: unknown) => Promise<{ error: unknown }>;
+            };
+          }
+        )
           .from("users")
           .insert(userData);
 
@@ -290,13 +314,25 @@ export const getCurrentUser = async (): Promise<User | null> => {
 // Helper function to get auth token
 export const getAuthToken = async (): Promise<string | null> => {
   try {
+    // Use getUser() first to verify authenticity
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Error getting authenticated user for token:", userError);
+      return null;
+    }
+
+    // Only get session if user is authenticated
     const {
       data: { session },
-      error,
+      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (error) {
-      console.error("Error getting session token:", error);
+    if (sessionError) {
+      console.error("Error getting session token:", sessionError);
       return null;
     }
 

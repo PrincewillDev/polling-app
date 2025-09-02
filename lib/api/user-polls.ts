@@ -1,5 +1,5 @@
 import { Poll } from "@/types";
-import { getAuthToken } from "@/components/auth/auth-provider";
+import { authenticatedFetchJSON, createAuthHeaders } from "@/lib/auth-utils";
 
 interface PaginationParams {
   limit?: number;
@@ -30,11 +30,7 @@ export class UserPollsAPI {
   }
 
   private async getAuthHeaders(): Promise<HeadersInit> {
-    const token = await getAuthToken();
-    return {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    };
+    return await createAuthHeaders();
   }
 
   // Get user's polls
@@ -58,18 +54,9 @@ export class UserPollsAPI {
         sortOrder,
       });
 
-      const response = await fetch(
+      return await authenticatedFetchJSON(
         `${this.baseUrl}/api/user/polls?${queryParams}`,
-        {
-          headers: await this.getAuthHeaders(),
-        },
       );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      return await response.json();
     } catch (error) {
       console.error("Error fetching user polls:", error);
       return {
@@ -126,18 +113,13 @@ export class UserPollsAPI {
     updates: Partial<Poll>,
   ): Promise<ApiResponse<Poll>> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/polls/${pollId}`, {
-        method: "PATCH",
-        headers: await this.getAuthHeaders(),
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
+      return await authenticatedFetchJSON(
+        `${this.baseUrl}/api/polls/${pollId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(updates),
+        },
+      );
     } catch (error) {
       console.error("Error updating poll:", error);
       return {
@@ -148,19 +130,11 @@ export class UserPollsAPI {
   }
 
   // Delete poll
-  async deletePoll(pollId: string): Promise<ApiResponse<null>> {
+  async deletePoll(id: string): Promise<ApiResponse<void>> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/polls/${pollId}`, {
+      return await authenticatedFetchJSON(`${this.baseUrl}/api/polls/${id}`, {
         method: "DELETE",
-        headers: await this.getAuthHeaders(),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
     } catch (error) {
       console.error("Error deleting poll:", error);
       return {
@@ -175,7 +149,24 @@ export class UserPollsAPI {
     pollId: string,
     status: "active" | "closed" | "draft",
   ): Promise<ApiResponse<Poll>> {
-    return this.updatePoll(pollId, { status });
+    try {
+      return await authenticatedFetchJSON(
+        `${this.baseUrl}/api/polls/${pollId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        },
+      );
+    } catch (error) {
+      console.error("Error toggling poll status:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update poll status",
+      };
+    }
   }
 
   // Toggle poll visibility
@@ -183,7 +174,24 @@ export class UserPollsAPI {
     pollId: string,
     isPublic: boolean,
   ): Promise<ApiResponse<Poll>> {
-    return this.updatePoll(pollId, { isPublic });
+    try {
+      return await authenticatedFetchJSON(
+        `${this.baseUrl}/api/polls/${pollId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ isPublic }),
+        },
+      );
+    } catch (error) {
+      console.error("Error toggling poll visibility:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update poll visibility",
+      };
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { createClient } from "@supabase/supabase-js";
 
 // Define specific types for metadata to avoid 'any'
@@ -49,18 +50,13 @@ if (!supabaseServiceKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-});
+// Main client instance - use this for all client-side operations
+export const supabase = createBrowserClient();
 
 // Server-side client with service role for admin operations
 // Falls back to regular client if service key is not available
 export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey, {
+  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -413,11 +409,5 @@ export type Database = {
   };
 };
 
-// Typed client
-export const supabaseClient = createClient<Database>(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-});
+// Export the main client as supabaseClient for backwards compatibility
+export const supabaseClient = supabase;

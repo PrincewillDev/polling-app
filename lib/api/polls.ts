@@ -13,16 +13,24 @@ export class PollsAPI {
     try {
       const {
         data: { session },
-        error,
+        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error("Error getting session:", error);
+      if (sessionError) {
+        console.error("Error getting session:", sessionError);
         return null;
       }
 
       if (!session?.access_token) {
         console.warn("No access token found in session");
+        return null;
+      }
+
+      // Verify the user to ensure the session is authentic
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error("User authentication failed, session considered invalid:", userError);
         return null;
       }
 

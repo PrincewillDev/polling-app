@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+
 import {
   ArrowLeft,
   Save,
@@ -38,14 +39,13 @@ import {
   Users,
   Eye,
 } from "lucide-react";
-import { useAuth } from "@/components/auth/auth-provider";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/ssr-auth-provider";
 import { Poll } from "@/types";
 
 interface EditPollPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 const CATEGORIES = [
@@ -64,11 +64,12 @@ const CATEGORIES = [
 export default function EditPollPage({ params }: EditPollPageProps) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -92,16 +93,22 @@ export default function EditPollPage({ params }: EditPollPageProps) {
 
   const [newTag, setNewTag] = useState("");
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-      return;
+  const getAuthToken = useCallback(async () => {
+    // Use session manager for better token handling
+    try {
+      const token = await import("@/lib/session-manager").then((m) =>
+        m.getAccessToken(),
+      );
+      return token;
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error getting auth token:", error);
+      }
+      return null;
     }
+  }, []);
 
-    fetchPoll();
-  }, [isAuthenticated, resolvedParams.id]);
-
-  const fetchPoll = async () => {
+  const fetchPoll = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -139,74 +146,139 @@ export default function EditPollPage({ params }: EditPollPageProps) {
         endDate: pollData.endDate ? pollData.endDate.split("T")[0] : "",
         isPublic: pollData.isPublic,
         tags: pollData.tags || [],
-        options: pollData.options.map((opt) => ({
+        options: pollData.options.map((opt: { id: string; text: string }) => ({
           id: opt.id,
           text: opt.text,
         })),
       });
     } catch (err) {
-      console.error("Error fetching poll:", err);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error fetching poll:", err);
+      }
       setError(err instanceof Error ? err.message : "Failed to fetch poll");
     } finally {
       setLoading(false);
     }
-  };
+  }, [resolvedParams.id, getAuthToken]);
 
-  const getAuthToken = async () => {
-    // This should match your auth implementation
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session?.access_token;
-  };
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+
+    fetchPoll();
+  }, [isAuthenticated, resolvedParams.id, fetchPoll, router]);
 
   const handleSave = async () => {
+    // Clear previous messages
+    setError(null);
+    setSuccess(null);
+
+    // Validate form
     if (!formData.title.trim()) {
       setError("Poll title is required");
       return;
     }
 
-    if (formData.options.filter((opt) => opt.text.trim()).length < 2) {
-      setError("At least 2 poll options are required");
+    if (!formData.category) {
+      setError("Please select a category for your poll");
+      return;
+    }
+
+    const validOptions = formData.options.filter(
+      (opt) => opt.text.trim().length > 0,
+    );
+    if (validOptions.length < 2) {
+      setError("Poll must have at least 2 non-empty options");
       return;
     }
 
     try {
       setSaving(true);
       setError(null);
+      setSuccess(null);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("🔄 Starting poll save process...");
+        console.log("📝 Form data:", formData);
+      }
 
       const token = await getAuthToken();
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          "🔑 Auth token obtained:",
+          token ? "✅ Success" : "❌ Failed",
+        );
+      }
+
+      if (!token) {
+        throw new Error("Authentication token not available");
+      }
+
+      const updatePayload = {
+        title: formData.title.trim(),
+        description: formData.description.trim() || undefined,
+        category: formData.category,
+        status: formData.status,
+        allowMultipleChoice: formData.allowMultipleChoice,
+        requireAuth: formData.requireAuth,
+        isAnonymous: formData.isAnonymous,
+        showResults: formData.showResults,
+        endDate: formData.endDate || undefined,
+        isPublic: formData.isPublic,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
+        // NOTE: Poll options are intentionally not updated to preserve vote integrity
+        // Modifying options after votes are cast could invalidate existing responses
+      };
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("📤 Sending update payload:", updatePayload);
+        console.log("🎯 API endpoint:", `/api/polls/${resolvedParams.id}`);
+      }
+
       const response = await fetch(`/api/polls/${resolvedParams.id}`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          title: formData.title.trim(),
-          description: formData.description.trim() || undefined,
-          category: formData.category,
-          status: formData.status,
-          allowMultipleChoice: formData.allowMultipleChoice,
-          requireAuth: formData.requireAuth,
-          isAnonymous: formData.isAnonymous,
-          showResults: formData.showResults,
-          endDate: formData.endDate || undefined,
-          isPublic: formData.isPublic,
-          tags: formData.tags.length > 0 ? formData.tags : undefined,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update poll");
+      if (process.env.NODE_ENV === "development") {
+        console.log("📡 API Response status:", response.status);
+        console.log("📡 API Response ok:", response.ok);
       }
 
-      // Redirect back to dashboard or poll view
-      router.push(`/polls/${resolvedParams.id}`);
+      const responseData = await response.json();
+      if (process.env.NODE_ENV === "development") {
+        console.log("📡 API Response data:", responseData);
+      }
+
+      if (!response.ok) {
+        throw new Error(responseData.error || `API error: ${response.status}`);
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("✅ Poll update successful!");
+      }
+
+      setSuccess("Poll updated successfully! Your changes have been saved.");
+
+      // Clear success message and redirect after delay
+      setTimeout(() => {
+        setSuccess(null);
+        router.push(`/polls/${resolvedParams.id}`);
+      }, 2000);
     } catch (err) {
-      console.error("Error saving poll:", err);
-      setError(err instanceof Error ? err.message : "Failed to save poll");
+      if (process.env.NODE_ENV === "development") {
+        console.error("❌ Error saving poll:", err);
+      }
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to save poll";
+      setError(errorMessage);
+      // Error is already set via setError above
     } finally {
       setSaving(false);
     }
@@ -278,7 +350,7 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Go Back
                 </Button>
-                <Button variant="outline" onClick={fetchPoll}>
+                <Button variant="outline" onClick={() => fetchPoll()}>
                   Try Again
                 </Button>
               </div>
@@ -324,9 +396,25 @@ export default function EditPollPage({ params }: EditPollPageProps) {
       </div>
 
       {error && (
-        <Card className="border-destructive">
+        <Card className="border-destructive" role="alert" aria-live="polite">
           <CardContent className="pt-6">
-            <div className="text-destructive">{error}</div>
+            <div className="text-destructive" id="error-message">
+              {error}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {success && (
+        <Card
+          className="border-green-500 bg-green-50"
+          role="alert"
+          aria-live="polite"
+        >
+          <CardContent className="pt-6">
+            <div className="text-green-700" id="success-message">
+              {success}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -339,7 +427,7 @@ export default function EditPollPage({ params }: EditPollPageProps) {
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
               <CardDescription>
-                Edit your poll's title and description
+                Edit your poll title and description
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -353,6 +441,14 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                   }
                   placeholder="Enter your poll question"
                   className="mt-1"
+                  aria-describedby={
+                    error && error.includes("title")
+                      ? "error-message"
+                      : undefined
+                  }
+                  aria-invalid={
+                    error && error.includes("title") ? "true" : "false"
+                  }
                 />
               </div>
 
@@ -403,6 +499,20 @@ export default function EditPollPage({ params }: EditPollPageProps) {
               <CardDescription>
                 Edit the choices available to voters
               </CardDescription>
+              {poll && poll.totalVotes > 0 && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                  <div className="flex">
+                    <div className="ml-3">
+                      <p className="text-sm text-amber-800">
+                        <strong>Note:</strong> Poll options cannot be modified
+                        after votes have been cast to preserve vote integrity.
+                        This poll has {poll.totalVotes} vote
+                        {poll.totalVotes !== 1 ? "s" : ""}.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {formData.options.map((option, index) => (
@@ -419,6 +529,7 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                       }
                       placeholder={`Enter option ${index + 1}`}
                       className="mt-1"
+                      disabled={!!(poll && poll.totalVotes > 0)}
                     />
                   </div>
                   {formData.options.length > 2 && (
@@ -428,6 +539,7 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                       size="sm"
                       className="mt-6"
                       onClick={() => handleRemoveOption(index)}
+                      disabled={!!(poll && poll.totalVotes > 0)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -440,6 +552,7 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                 variant="outline"
                 onClick={handleAddOption}
                 className="w-full"
+                disabled={!!(poll && poll.totalVotes > 0)}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Option
@@ -461,19 +574,42 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   placeholder="Add a tag"
-                  onKeyPress={(e) =>
-                    e.key === "Enter" && (e.preventDefault(), handleAddTag())
-                  }
+                  aria-label="New tag input"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === "NumpadEnter") {
+                      e.preventDefault();
+                      handleAddTag();
+                    }
+                  }}
                 />
-                <Button type="button" variant="outline" onClick={handleAddTag}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddTag}
+                  aria-label="Add tag"
+                  disabled={
+                    !newTag.trim() ||
+                    formData.tags.includes(newTag.trim()) ||
+                    formData.tags.length >= 10
+                  }
+                >
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
 
               {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="list"
+                  aria-label="Poll tags"
+                >
                   {formData.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="pr-1">
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="pr-1"
+                      role="listitem"
+                    >
                       {tag}
                       <Button
                         type="button"
@@ -481,6 +617,7 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                         size="sm"
                         className="h-auto p-1 ml-1"
                         onClick={() => handleRemoveTag(tag)}
+                        aria-label={`Remove tag ${tag}`}
                       >
                         <X className="w-3 h-3" />
                       </Button>
@@ -508,6 +645,7 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                     setFormData((prev) => ({ ...prev, status: value }))
                   }
                   className="mt-2"
+                  aria-describedby="status-help"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="draft" id="draft" />
@@ -522,6 +660,12 @@ export default function EditPollPage({ params }: EditPollPageProps) {
                     <Label htmlFor="closed">Closed</Label>
                   </div>
                 </RadioGroup>
+                <p
+                  id="status-help"
+                  className="text-xs text-muted-foreground mt-1"
+                >
+                  Draft polls are not visible to voters until activated
+                </p>
               </div>
 
               <Separator />

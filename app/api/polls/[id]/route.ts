@@ -113,8 +113,17 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
             name: pollCreator.name,
             email: pollCreator.email,
             avatar: pollCreator.avatar,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           }
-        : null,
+        : {
+            id: "",
+            name: "Unknown",
+            email: "",
+            avatar: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
       allowMultipleChoice: poll.allow_multiple_choice,
       requireAuth: poll.require_auth,
       isAnonymous: poll.is_anonymous,
@@ -218,7 +227,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     console.log("Updates received:", updates);
 
     // Build update object with more explicit handling
-    const updateData: any = {};
+    const updateData: Record<string, string | boolean | null> = {};
 
     if (updates.title) {
       updateData.title = updates.title.toString().trim();
@@ -277,13 +286,23 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     console.log("Update data prepared:", updateData);
 
     // Update poll using admin client to bypass RLS
-    const { error: updateError } = await supabaseAdmin
+    console.log("Executing database update...");
+    const { data: updateResult, error: updateError } = await supabaseAdmin
       .from("polls")
       .update(updateData)
-      .eq("id", id);
+      .eq("id", id)
+      .select();
+
+    console.log("Database update result:", updateResult);
+    console.log("Database update error:", updateError);
 
     if (updateError) {
-      console.error("Update error:", updateError);
+      console.error("Update error details:", {
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+        code: updateError.code,
+      });
       return NextResponse.json(
         {
           success: false,
@@ -294,11 +313,29 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    console.log("Poll updated successfully");
+    if (!updateResult || updateResult.length === 0) {
+      console.warn(
+        "No rows were updated - poll may not exist or no changes made",
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "No poll was updated - poll may not exist or no changes were made",
+        },
+        { status: 404 },
+      );
+    }
+
+    console.log(
+      "Poll updated successfully, affected rows:",
+      updateResult.length,
+    );
 
     return NextResponse.json({
       success: true,
       message: "Poll updated successfully",
+      updatedPoll: updateResult[0],
     });
   } catch (error) {
     console.error("Unexpected error updating poll:", error);

@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase, supabaseAdmin, Database } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { CreatePollRequest } from "@/types";
 
-// Type for poll option from database
-type PollOptionRow = Database["public"]["Tables"]["poll_options"]["Row"];
+// Type definitions for database objects
+interface PollOption {
+  id: string;
+  poll_id: string;
+  text: string;
+  order_index: number;
+  votes: number;
+  created_at: string;
+}
 
-// Type for user from database
-type UserRow = Database["public"]["Tables"]["users"]["Row"];
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
-// Type for poll with relations
-interface PollWithRelations {
+interface PollData {
   id: string;
   title: string;
   description: string | null;
@@ -29,8 +41,52 @@ interface PollWithRelations {
   tags: string[] | null;
   is_public: boolean;
   share_code: string | null;
-  poll_options?: PollOptionRow[];
-  users?: UserRow | null;
+  poll_options?: PollOption[];
+}
+
+interface UserInsert {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+}
+
+interface PollInsert {
+  title: string;
+  description: string | null;
+  category: string;
+  created_by: string;
+  allow_multiple_choice: boolean;
+  require_auth: boolean;
+  is_anonymous: boolean;
+  show_results: "immediately" | "after-vote" | "after-end" | "never";
+  end_date: string | null;
+  is_public: boolean;
+  tags: string[];
+  status: string;
+}
+
+interface PollOptionInsert {
+  poll_id: string;
+  text: string;
+  order_index: number;
+}
+
+interface PollUpdate {
+  status: string;
+}
+
+interface AnalyticsInsert {
+  poll_id: string;
+  user_id: string;
+  event_type: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  metadata: {
+    options_count: number;
+    allow_multiple_choice: boolean;
+    category: string;
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -126,13 +182,23 @@ export async function POST(request: NextRequest) {
 
       console.log("Creating user profile for:", userName);
 
-      const { error: createError } = await supabaseAdmin.from("users").insert({
+      const userData: UserInsert = {
         id: user.id,
         name: userName.toString().trim() || "User",
         email: user.email!,
         avatar:
           user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-      });
+      };
+
+      const { error: createError } = await (
+        supabaseAdmin as unknown as {
+          from: (table: string) => {
+            insert: (data: unknown) => Promise<{ error: unknown }>;
+          };
+        }
+      )
+        .from("users")
+        .insert(userData);
 
       if (createError) {
         console.error("Failed to create user profile:", createError);
@@ -156,7 +222,7 @@ export async function POST(request: NextRequest) {
 
     // Create poll without foreign key constraint to public.users
     // We'll create a simpler version that doesn't depend on the users table
-    const pollInsertData = {
+    const pollInsertData: PollInsert = {
       title: pollData.title.trim(),
       description: pollData.description?.trim() || null,
       category: pollData.category,
@@ -176,13 +242,23 @@ export async function POST(request: NextRequest) {
 
     console.log("Creating poll with data:", pollInsertData);
 
-    const { data: poll, error: pollError } = await supabaseAdmin
+    const { data: poll, error: pollError } = await (
+      supabaseAdmin as unknown as {
+        from: (table: string) => {
+          insert: (data: unknown) => {
+            select: () => {
+              single: () => Promise<{ data: PollData | null; error: unknown }>;
+            };
+          };
+        };
+      }
+    )
       .from("polls")
       .insert(pollInsertData)
       .select()
       .single();
 
-    if (pollError) {
+    if (pollError || !poll) {
       console.error("Error creating poll:", pollError);
       return NextResponse.json(
         { success: false, error: "Failed to create poll" },
@@ -191,13 +267,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create poll options
-    const optionInserts = pollData.options.map((option, index) => ({
-      poll_id: poll.id,
-      text: option.text.trim(),
-      order_index: index,
-    }));
+    const optionInserts: PollOptionInsert[] = pollData.options.map(
+      (option, index) => ({
+        poll_id: poll.id,
+        text: option.text.trim(),
+        order_index: index,
+      }),
+    );
 
-    const { error: optionsError } = await supabaseAdmin
+    const { error: optionsError } = await (
+      supabaseAdmin as unknown as {
+        from: (table: string) => {
+          insert: (data: unknown) => Promise<{ error: unknown }>;
+        };
+      }
+    )
       .from("poll_options")
       .insert(optionInserts);
 
@@ -205,7 +289,18 @@ export async function POST(request: NextRequest) {
       console.error("Error creating poll options:", optionsError);
 
       // Rollback: delete the poll since options failed
-      await supabaseAdmin.from("polls").delete().eq("id", poll.id);
+      await (
+        supabaseAdmin as unknown as {
+          from: (table: string) => {
+            delete: () => {
+              eq: (column: string, value: string) => Promise<unknown>;
+            };
+          };
+        }
+      )
+        .from("polls")
+        .delete()
+        .eq("id", poll.id);
 
       return NextResponse.json(
         { success: false, error: "Failed to create poll options" },
@@ -215,9 +310,29 @@ export async function POST(request: NextRequest) {
 
     // Activate the poll if it's not meant to be a draft
     const finalStatus = pollData.isPublic ? "active" : "draft";
-    const { data: finalPoll, error: updateError } = await supabaseAdmin
+    const updateData: PollUpdate = { status: finalStatus };
+
+    const { data: finalPoll, error: updateError } = await (
+      supabaseAdmin as unknown as {
+        from: (table: string) => {
+          update: (data: unknown) => {
+            eq: (
+              column: string,
+              value: string,
+            ) => {
+              select: (columns: string) => {
+                single: () => Promise<{
+                  data: PollData | null;
+                  error: unknown;
+                }>;
+              };
+            };
+          };
+        };
+      }
+    )
       .from("polls")
-      .update({ status: finalStatus })
+      .update(updateData)
       .eq("id", poll.id)
       .select(
         `
@@ -232,7 +347,7 @@ export async function POST(request: NextRequest) {
       )
       .single();
 
-    if (updateError) {
+    if (updateError || !finalPoll) {
       console.error("Error updating poll status:", updateError);
       return NextResponse.json(
         { success: false, error: "Poll created but failed to activate" },
@@ -241,7 +356,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Track the creation event
-    await supabaseAdmin.from("poll_analytics").insert({
+    const analyticsData: AnalyticsInsert = {
       poll_id: poll.id,
       user_id: user.id,
       event_type: "created",
@@ -255,7 +370,17 @@ export async function POST(request: NextRequest) {
         allow_multiple_choice: pollData.allowMultipleChoice,
         category: pollData.category,
       },
-    });
+    };
+
+    await (
+      supabaseAdmin as unknown as {
+        from: (table: string) => {
+          insert: (data: unknown) => Promise<unknown>;
+        };
+      }
+    )
+      .from("poll_analytics")
+      .insert(analyticsData);
 
     return NextResponse.json({
       success: true,
@@ -284,7 +409,7 @@ export async function POST(request: NextRequest) {
         totalViews: finalPoll.total_views,
         uniqueVoters: finalPoll.unique_voters,
         options:
-          finalPoll.poll_options?.map((option: PollOptionRow) => ({
+          finalPoll.poll_options?.map((option: PollOption) => ({
             id: option.id,
             text: option.text,
             votes: option.votes,
@@ -378,16 +503,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user data separately to avoid foreign key issues
-    let usersMap = new Map();
+    const usersMap = new Map();
     if (polls && polls.length > 0) {
-      const userIds = [...new Set(polls.map((poll) => poll.created_by))];
+      const userIds = [
+        ...new Set(
+          polls.map((poll: Record<string, unknown>) => poll.created_by),
+        ),
+      ];
       const { data: users, error: usersError } = await supabase
         .from("users")
         .select("id, name, avatar")
         .in("id", userIds);
 
       if (!usersError && users) {
-        users.forEach((user) => {
+        users.forEach((user: User) => {
           usersMap.set(user.id, user);
         });
       }
@@ -395,7 +524,7 @@ export async function GET(request: NextRequest) {
 
     // Transform the data to match our frontend types
     const transformedPolls =
-      polls?.map((poll: any) => {
+      polls?.map((poll: Record<string, unknown>) => {
         const user = usersMap.get(poll.created_by);
         return {
           id: poll.id,
@@ -424,12 +553,12 @@ export async function GET(request: NextRequest) {
           isPublic: poll.is_public,
           shareCode: poll.share_code,
           options:
-            poll.poll_options?.map((option: PollOptionRow) => ({
+            (poll.poll_options as PollOption[])?.map((option: PollOption) => ({
               id: option.id,
               text: option.text,
               votes: option.votes,
               percentage:
-                poll.total_votes > 0
+                typeof poll.total_votes === "number" && poll.total_votes > 0
                   ? Math.round((option.votes / poll.total_votes) * 100)
                   : 0,
             })) || [],

@@ -1,11 +1,11 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Home, Plus, BarChart3, User, LogOut } from "lucide-react";
-import { useAuth } from "@/components/auth/auth-provider";
+import { useAuth } from "@/components/auth/ssr-auth-provider";
 import { supabase } from "@/lib/supabase";
 
 interface DashboardLayoutProps {
@@ -16,11 +16,7 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && !user) { // Only redirect if not loading AND no user
-      router.push("/login");
-    }
-  }, [user, loading, router]);
+  // Client-side redirect is now handled by middleware
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -28,11 +24,25 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse text-gray-600">Loading...</div>
+      </div>
+    );
   }
 
   if (!user) {
-    return null;
+    // This should rarely happen due to middleware protection
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Authentication Required
+          </h1>
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

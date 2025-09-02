@@ -178,9 +178,43 @@ export interface VotingFormProps {
   isLoading?: boolean;
 }
 
+// Poll Results Data Structures
+export interface PollResult {
+  optionId: string;
+  optionText: string;
+  votes: number;
+  percentage: number;
+  voters?: Array<{
+    id: string;
+    name?: string;
+    votedAt: string;
+  }>;
+}
+
 export interface PollResultsProps {
+  pollId: string;
   poll: Poll;
+  results: PollResult[];
+  totalVotes: number;
+  uniqueVoters: number;
+  showPercentages?: boolean;
   showVoterDetails?: boolean;
+  showVoterCount?: boolean;
+  isLoading?: boolean;
+  isRealTime?: boolean;
+  displayMode?: "bar" | "pie" | "list" | "minimal";
+  theme?: "light" | "dark" | "auto";
+  animationEnabled?: boolean;
+  sortBy?: "votes" | "percentage" | "alphabetical" | "order";
+  sortOrder?: "asc" | "desc";
+  highlightWinning?: boolean;
+  showResultsAfter?: "immediately" | "after-vote" | "after-end" | "never";
+  allowExport?: boolean;
+  onResultClick?: (optionId: string, result: PollResult) => void;
+  onVoterClick?: (voterId: string) => void;
+  onExport?: (format: "csv" | "json" | "pdf") => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 // Auth context types

@@ -29,20 +29,21 @@ import {
   AlertCircle,
   Globe,
   Lock,
+  BarChart3,
 } from "lucide-react";
-import { useAuth } from "@/components/auth/auth-provider";
+import { useAuth } from "@/components/auth/ssr-auth-provider";
 import { supabase } from "@/lib/supabase";
-import { Poll } from "@/types";
+import { Poll, PollResult } from "@/types";
+import PollResults from "@/components/polls/poll-results";
 
 interface PollPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function PollPage({ params }: PollPageProps) {
   const resolvedParams = use(params);
-  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,7 @@ export default function PollPage({ params }: PollPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [hasVoted, setHasVoted] = useState(false);
+  const [pollResults, setPollResults] = useState<PollResult[]>([]);
 
   useEffect(() => {
     fetchPoll();
@@ -74,6 +76,19 @@ export default function PollPage({ params }: PollPageProps) {
 
       const result = await response.json();
       setPoll(result.data);
+
+      // Transform poll options to PollResult format
+      if (result.data && result.data.options) {
+        const transformedResults: PollResult[] = result.data.options.map(
+          (option: any) => ({
+            optionId: option.id,
+            optionText: option.text,
+            votes: option.votes || 0,
+            percentage: option.percentage || 0,
+          }),
+        );
+        setPollResults(transformedResults);
+      }
     } catch (err) {
       console.error("Error fetching poll:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch poll");
@@ -109,8 +124,34 @@ export default function PollPage({ params }: PollPageProps) {
   const getAuthToken = async () => {
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession();
-    return session?.access_token;
+
+    if (sessionError) {
+      console.error("Error getting session:", sessionError);
+      return null;
+    }
+
+    if (!session?.access_token) {
+      console.warn("No access token found in session");
+      return null;
+    }
+
+    // Verify the user to ensure the session is authentic
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error(
+        "User authentication failed, session considered invalid:",
+        userError,
+      );
+      return null;
+    }
+
+    return session.access_token;
   };
 
   const handleVote = async () => {
@@ -205,6 +246,14 @@ export default function PollPage({ params }: PollPageProps) {
     poll?.showResults === "immediately" ||
     poll?.status === "closed";
 
+  const handleResultClick = (optionId: string, result: PollResult) => {
+    console.log("Result clicked:", { optionId, result });
+  };
+
+  const handleExport = (format: "csv" | "json" | "pdf") => {
+    console.log("Exporting results as:", format);
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -256,6 +305,14 @@ export default function PollPage({ params }: PollPageProps) {
             <Share2 className="h-4 w-4 mr-2" />
             Share
           </Button>
+          {showResults && (
+            <Button variant="outline" asChild>
+              <Link href={`/polls/${resolvedParams.id}/results`}>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                View Detailed Results
+              </Link>
+            </Button>
+          )}
           {isOwner && (
             <Button asChild>
               <Link href={`/polls/${poll.id}/edit`}>
@@ -445,6 +502,26 @@ export default function PollPage({ params }: PollPageProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Enhanced Poll Results */}
+      {showResults && poll && pollResults.length > 0 && (
+        <PollResults
+          pollId={resolvedParams.id}
+          poll={poll}
+          results={pollResults}
+          totalVotes={poll.totalVotes}
+          uniqueVoters={poll.uniqueVoters || poll.totalVotes}
+          showPercentages={true}
+          showVoterDetails={false}
+          isRealTime={poll.status === "active"}
+          displayMode="bar"
+          highlightWinning={true}
+          allowExport={isOwner}
+          onResultClick={handleResultClick}
+          onExport={handleExport}
+          className="mb-6"
+        />
+      )}
 
       {/* Tags */}
       {poll.tags && poll.tags.length > 0 && (
